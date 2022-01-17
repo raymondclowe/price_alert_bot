@@ -116,8 +116,10 @@ class TgBotService(object):
                 if updates is None:
                     self.log.error('get update request failed')
                 else:
+                    self.log.info("processUpdates(updates)")
                     self.processUpdates(updates)
                 try:
+                    self.log.info("processAlerts()")
                     self.processAlerts()
                 except:
                     self.log.exception("exception at processing alerts")
@@ -137,7 +139,7 @@ class TgBotService(object):
 
 if __name__ == "__main__":
     service = TgBotService()
-    debug= False
+    debug= True
     if len(sys.argv) > 1 and sys.argv[1] == "debug":
         debug=True
     service.run(debug)

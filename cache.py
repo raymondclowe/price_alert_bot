@@ -36,6 +36,7 @@ class cache:
             if key in cache.cache:
                 entry = cache.cache[key]
                 if entry[0] + self.__secs >= time():
+                    self.log.debug(f"cache hit for {key}")
                     return entry[1]
                 else:
                     self.log.debug(f"cache expired for key: {key}")
