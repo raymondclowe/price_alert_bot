@@ -1,4 +1,4 @@
-import math, time, requests, pickle, traceback
+import math, time, requests, pickle, traceback, hashlib
 from datetime import datetime, timedelta
 
 
@@ -55,8 +55,102 @@ class CommandHandler:
                 self.showwatches(chatId, command)
             elif command.startswith('clearwatches'):
                 self.clearwatches(chatId, command)
+            elif command.startswith('delete'):
+                self.delete(chatId, command)
             else:
                 self.api.sendMessage('Unknown command', chatId)
+
+    def delete(self, chatId, command):
+        parts = command.split()
+        # self.log.debug('Delete command')
+        
+        if len(parts) == 1:  # list all the watches and alerts with an ID
+            # self.log.debug('Delete listing')
+            deleteList  = "Here are the alerts and watches you can delete: \n \n"
+            
+                # first list all the alerts that belong to this user, and give a 4 letter ID which is the first three letters of a hash of the item
+                # this is so that the user can delete the alert by typing the ID
+                # this is not a security measure, it is just to make it easier for the user to delete the alerts
+                # if the user is not logged in, the ID will be the same as the alert ID, so
+            if 'alerts' in self.db and chatId in self.db['alerts']:
+                alerts=self.db['alerts'][chatId]
+                for fsym in alerts:
+                    for op in alerts[fsym]:
+                        for tsym in alerts[fsym][op]:
+                            for target in alerts[fsym][op][tsym]:
+                                alertString = f'{fsym} {op} {target} {tsym}\n' 
+                                hashOfAlert = hashlib.sha256(alertString.encode('utf-8')).hexdigest()[:4]
+                                deleteList += f'ID={hashOfAlert} : {alertString} \n'
+            else:
+                deleteList += 'No alert is set'
+
+            # now the watches
+            if 'watches' in self.db:
+                for watch in self.db['watches']:
+                    if watch['chatId'] == chatId:
+                        watchString = f'{watch["fsym"]} {watch["op"]} {watch["target"]} {watch["duration"]} {watch["duration_type"]}'
+                        hashOfWatch = hashlib.sha256(watchString.encode('utf-8')).hexdigest()[:4]
+                        deleteList += f'ID={hashOfWatch} : {watchString} \n'
+                        
+            else:
+                deleteList += '\n No watches  \n'
+
+
+            deleteList += ' \nTo delete an alert or watch, type /delete <ID>'
+            
+
+            self.api.sendMessage(deleteList, chatId)
+
+        elif len(parts) == 2: # delete a specific watch or alert
+            # get the id and make sure it is a 4 digit hex value
+            deleteID = parts[1]
+            if len(deleteID)!= 4:
+                self.api.sendMessage("Invalid ID, must be 4 characters long", chatId)
+                return
+            
+            # if it is not valid hex then error and return
+            try:
+                int(deleteID, 16)
+            except:
+                self.api.sendMessage("Invalid ID, must be 4 hex characters long", chatId)
+                return           
+
+
+# here we scan through all of them and find the one to delete
+            if 'alerts' in self.db and chatId in self.db['alerts']:
+                alerts=self.db['alerts'][chatId]
+                for fsym in alerts:
+                    for op in alerts[fsym]:
+                        for tsym in alerts[fsym][op]:
+                            for target in alerts[fsym][op][tsym]:
+                                alertString = f'{fsym} {op} {target} {tsym}\n' 
+                                hashOfAlert = hashlib.sha256(alertString.encode('utf-8')).hexdigest()[:4]
+                                if deleteID == hashOfAlert:
+                                    self.db['alerts'][chatId][fsym][op][tsym].remove(target)
+                                    self.api.sendMessage("Done", chatId)
+                                    self.logger.info(f'Alert deleted {alertString}')
+                                    return
+
+            # now the watches
+            if 'watches' in self.db:
+                for watch in self.db['watches']:
+                    if watch['chatId'] == chatId:
+                        watchString = f'{watch["fsym"]} {watch["op"]} {watch["target"]} {watch["duration"]} {watch["duration_type"]}'
+                        hashOfWatch = hashlib.sha256(watchString.encode('utf-8')).hexdigest()[:4]
+                        if deleteID == hashOfWatch:
+                            self.db['watches'].remove(watch)
+                            self.api.sendMessage("Done", chatId)
+                            self.logger.info(f'Watch deleted {watch}')
+                            return
+                        
+            self.api.sendMessage('Not found', chatId)
+            
+        else:
+            self.api.sendMessage('Unknown command', chatId)
+            return
+
+
+
 
     def clear(self, chatId, command):
         if 'alerts' in self.db and chatId in self.db['alerts']:
