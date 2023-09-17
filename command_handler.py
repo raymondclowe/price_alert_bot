@@ -1,4 +1,4 @@
-import math, time, requests, pickle, traceback, hashlib
+import math, time, requests, pickle, traceback
 from datetime import datetime, timedelta
 
 
@@ -11,7 +11,7 @@ import config
 from formating import format_price
 from api.binance_rest import CandleInterval
 
-
+from utils import get_id
 
 class CommandHandler:
 
@@ -78,8 +78,8 @@ class CommandHandler:
                     for op in alerts[fsym]:
                         for tsym in alerts[fsym][op]:
                             for target in alerts[fsym][op][tsym]:
+                                hashOfAlert = get_id(chatId, target)[:4]
                                 alertString = f'{fsym} {op} {target} {tsym}\n' 
-                                hashOfAlert = hashlib.sha256(alertString.encode('utf-8')).hexdigest()[:4]
                                 deleteList += f'ID={hashOfAlert} : {alertString} \n'
             else:
                 deleteList += 'No alert is set'
@@ -88,8 +88,8 @@ class CommandHandler:
             if 'watches' in self.db:
                 for watch in self.db['watches']:
                     if watch['chatId'] == chatId:
+                        hashOfWatch = get_id(chatId,watch)[:4]
                         watchString = f'{watch["fsym"]} {watch["op"]} {watch["target"]} {watch["duration"]} {watch["duration_type"]}'
-                        hashOfWatch = hashlib.sha256(watchString.encode('utf-8')).hexdigest()[:4]
                         deleteList += f'ID={hashOfWatch} : {watchString} \n'
                         
             else:
@@ -124,7 +124,7 @@ class CommandHandler:
                         for tsym in alerts[fsym][op]:
                             for target in alerts[fsym][op][tsym]:
                                 alertString = f'{fsym} {op} {target} {tsym}\n' 
-                                hashOfAlert = hashlib.sha256(alertString.encode('utf-8')).hexdigest()[:4]
+                                hashOfAlert = get_id(chatId, target)[:4]
                                 if deleteID == hashOfAlert:
                                     self.db['alerts'][chatId][fsym][op][tsym].remove(target)
                                     self.api.sendMessage("Done", chatId)
@@ -136,7 +136,7 @@ class CommandHandler:
                 for watch in self.db['watches']:
                     if watch['chatId'] == chatId:
                         watchString = f'{watch["fsym"]} {watch["op"]} {watch["target"]} {watch["duration"]} {watch["duration_type"]}'
-                        hashOfWatch = hashlib.sha256(watchString.encode('utf-8')).hexdigest()[:4]
+                        hashOfWatch = get_id(chatId, watch)[:4]
                         if deleteID == hashOfWatch:
                             self.db['watches'].remove(watch)
                             self.api.sendMessage("Done", chatId)
