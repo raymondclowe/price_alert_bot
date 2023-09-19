@@ -89,7 +89,13 @@ class CommandHandler:
                 for watch in self.db['watches']:
                     if watch['chatId'] == chatId:
                         hashOfWatch = get_id(chatId,watch)[:4]
-                        watchString = f'{watch["fsym"]} {watch["op"]} {watch["target"]} {watch["duration"]} {watch["duration_type"]}'
+                        # persistString is either blank or the word "persistent" followed by the notification frequency
+                        if 'persistent' in watch and watch['persistent']:
+                            persistString =f'persistent {watch["notify_frequencey"]} seconds'
+                        else:
+                            persistString = ''
+                        
+                        watchString = f'{watch["fsym"]} {watch["op"]} {watch["target"]} {watch["duration"]} {watch["duration_type"]} {persistString}'
                         deleteList += f'ID={hashOfWatch} : {watchString} \n'
                         
             else:
@@ -177,21 +183,36 @@ class CommandHandler:
         msg = ''
         for watch in self.db['watches']:
             if watch['chatId'] == chatId:
-                msg += '{} {} {} {} {}\n'.format(watch['fsym'], watch['op'], watch['target'], watch['duration'], watch['duration_type'])
+                # persistString is either empty or it the word "persistent" followed by the notify_frequencey duration
+                persistString = ''
+                if 'persistent' in watch and watch['persistent']:
+                    persistString =f'persistent {watch["notify_frequencey"]} seconds'
+                msg += '{} {} {} {} {} {}\n'.format(watch['fsym'], watch['op'], watch['target'], watch['duration'], watch['duration_type'], persistString)
+        
+                
         self.api.sendMessage(msg, chatId)
 
     def watch(self, chatId, command):
         # command structured
         # /watch btc drop 50% 14 days
         # /watch btc rise 50% 1 month
+        # /watch btc rise 50% 1 month persistent
         # /watch btc drop 5000 2 days
         # /watch btc drop 5000 from ath
+        # /watch btc drop 5000 from ath persistent
 
         parts = command.split()
-        if not (len(parts) in [5,6]): # if you don't specify period it is days
+        if not (len(parts) in [5,6,7]): # if you don't specify period it is days
             self.api.sendMessage("Invalid command, see help", chatId)
             return
+        
+        # if there are 6 or 7 parts and the last part starts 'persist' then persistence is true
+        persistence = False
+        if len(parts) in [6, 7] and parts[-1].lower().startswith('persist'):
+            persistence = True
 
+
+ 
         fsym = parts[1].upper()
 
         tsym = config.DEFAULT_FIAT
@@ -246,6 +267,10 @@ class CommandHandler:
         else:
             duration_type = 'days'
 
+        if not self.repository.isPricePairValid(fsym, tsym):
+            self.api.sendMessage("Invalid symbols {} {}".format(fsym,tsym), chatId)
+            return
+        
         # create an watch dictionar
         watch = {}
         watch['chatId'] = chatId
@@ -256,21 +281,21 @@ class CommandHandler:
         watch['duration'] = duration
         watch['duration_type'] = duration_type
         watch['from_ath'] = from_ath
+        watch['persistent'] = persistence
+        watch['last_notify'] = 0 # Zero epoch
+        # once per 24 hours as default
+        watch['notify_frequencey']  = 24 * 60 * 60
+
 
         if 'watches' not in self.db:
             self.db['watches'] = []
+
         self.db['watches'].append( watch) 
-        self.api.sendMessage("Watch added", chatId)
-        return
-
-
-
-        if not self.repository.isPricePairValid(fsym, tsym):
-            self.api.sendMessage("Invalid symbols {} {}".format(fsym,tsym), chatId)
-            return
+        # self.api.sendMessage("Watch added", chatId)
 
         resp = 'Watching {} {} {}'.format(fsym, op, parts[3])
         self.api.sendMessage(resp, chatId)
+        return
 
     def ath(self, chatId, command):
         parts = command.split()
