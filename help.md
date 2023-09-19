@@ -79,6 +79,14 @@ Example:
 `/watch btc drop 5000 2 days` (absolute value drop)  
 `/watch btc drop 5000 from ath`  
 `/watch btc drop 75% from ath`  
+
+Optionally watch commands have have a "persist" keywords so they don't get deleted when they fire
+but will repeat. Minimum frequency is default 1 day. Such watches have to be manually deleted
+using the `/delete` command when you don't want them any more.
+
+Example:
+`/watch btc drop 50% 14 days persist`
+
   
 Comparisons are vs current price unless "from ath" is set   
 
