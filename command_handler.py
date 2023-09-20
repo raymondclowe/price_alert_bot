@@ -91,7 +91,7 @@ class CommandHandler:
                         hashOfWatch = get_id(chatId,watch)[:4]
                         # persistString is either blank or the word "persistent" followed by the notification frequency
                         if 'persistent' in watch and watch['persistent']:
-                            persistString =f'persistent {watch["notify_frequencey"]} seconds'
+                            persistString =f'persistent {watch["notify_frequency"]} seconds'
                         else:
                             persistString = ''
                         
@@ -183,10 +183,10 @@ class CommandHandler:
         msg = ''
         for watch in self.db['watches']:
             if watch['chatId'] == chatId:
-                # persistString is either empty or it the word "persistent" followed by the notify_frequencey duration
+                # persistString is either empty or it the word "persistent" followed by the notify_frequency duration
                 persistString = ''
                 if 'persistent' in watch and watch['persistent']:
-                    persistString =f'persistent {watch["notify_frequencey"]} seconds'
+                    persistString =f'persistent {watch["notify_frequency"]} seconds'
                 msg += '{} {} {} {} {} {}\n'.format(watch['fsym'], watch['op'], watch['target'], watch['duration'], watch['duration_type'], persistString)
         
                 
@@ -284,7 +284,7 @@ class CommandHandler:
         watch['persistent'] = persistence
         watch['last_notify'] = 0 # Zero epoch
         # once per 24 hours as default
-        watch['notify_frequencey']  = 24 * 60 * 60
+        watch['notify_frequency']  = 24 * 60 * 60
 
 
         if 'watches' not in self.db:
