@@ -82,7 +82,7 @@ class CommandHandler:
                                 alertString = f'{fsym} {op} {target} {tsym}\n' 
                                 deleteList += f'ID={hashOfAlert} : {alertString} \n'
             else:
-                deleteList += 'No alert is set'
+                deleteList += 'No alert is set \n\n'
 
             # now the watches
             if 'watches' in self.db:
