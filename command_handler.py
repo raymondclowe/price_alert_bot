@@ -134,7 +134,7 @@ class CommandHandler:
                                 if deleteID == hashOfAlert:
                                     self.db['alerts'][chatId][fsym][op][tsym].remove(target)
                                     self.api.sendMessage("Done", chatId)
-                                    self.logger.info(f'Alert deleted {alertString}')
+                                    self.log.info(f'Alert deleted {alertString}')
                                     return
 
             # now the watches
@@ -146,7 +146,7 @@ class CommandHandler:
                         if deleteID == hashOfWatch:
                             self.db['watches'].remove(watch)
                             self.api.sendMessage("Done", chatId)
-                            self.logger.info(f'Watch deleted {watch}')
+                            self.log.info(f'Watch deleted {watch}')
                             return
                         
             self.api.sendMessage('Not found', chatId)
