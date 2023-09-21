@@ -88,10 +88,10 @@ class CommandHandler:
             if 'watches' in self.db:
                 for watch in self.db['watches']:
                     if watch['chatId'] == chatId:
-                        hashOfWatch = get_id(chatId,watch)[:4]
+                        hashOfWatch = str(get_id(chatId,watch)[:4])
                         # persistString is either blank or the word "persistent" followed by the notification frequency
                         if 'persistent' in watch and watch['persistent']:
-                            persistString =f'persistent {watch["notify_frequency"]} seconds'
+                            persistString =f'persistent {human_format_seconds(watch["notify_frequency"])}'
                         else:
                             persistString = ''
                         
@@ -143,7 +143,7 @@ class CommandHandler:
                     if watch['chatId'] == chatId:
                         watchString = f'{watch["fsym"]} {watch["op"]} {watch["target"]} {watch["duration"]} {watch["duration_type"]}'
                         hashOfWatch = get_id(chatId, watch)[:4]
-                        if deleteID == hashOfWatch:
+                        if str(deleteID) == str(hashOfWatch):
                             self.db['watches'].remove(watch)
                             self.api.sendMessage("Done", chatId)
                             self.log.info(f'Watch deleted {watch}')
@@ -199,27 +199,20 @@ class CommandHandler:
         # /watch btc rise 50% 1 month persistent
         # /watch btc drop 5000 2 days
         # /watch btc drop 5000 from ath
-        # /watch btc drop 5000 from ath persistent {hourly|daily|weekly}
+        # /watch btc drop 5000 from ath persistent {hourly|daily|weekly|minute}
 
         frequency_mapping = {
             'weekly': 7 * 24 * 60 * 60,
             'daily': 24 * 60 * 60,
-            'hourly': 60 * 60
+            'hourly': 60 * 60,
+            'minute': 60
         }
 
-        parts = command.lower.split()
+        parts = command.lower().split()
         if not (len(parts) in [5,6,7,8]): # if you don't specify period it is days
             self.api.sendMessage("Invalid command, see help", chatId)
             return
         
-        # if there are 6 or 7 parts and the last part starts 'persist' then persistence is true
-        persistence = False
-        if len(parts) in [6, 7, 8] and (parts[6].lower().startswith('persist')):
-            persistence = True
-            notify_frequency = 24 * 60 * 60 # 24 hours
-            if parts[7] in frequency_mapping:
-                notify_frequency = frequency_mapping[parts[7]]
-                
 
         fsym = parts[1].upper()
 
@@ -274,6 +267,24 @@ class CommandHandler:
             duration_type = parts[5]
         else:
             duration_type = 'days'
+
+        # unless it is the word persist in which case it is still days
+        if duration_type.startswith('persist'):
+            duration_type = 'days'
+            persistence = True
+            notify_frequency = 24 * 60 * 60 # 24 hours
+            if len(parts) > 6 and parts[6] in frequency_mapping:
+                notify_frequency = frequency_mapping[parts[6]]
+
+        # if there are 6 or 7 parts and the last part starts 'persist' then persistence is true
+        persistence = False
+        if len(parts) in [6, 7, 8] and (parts[6].lower().startswith('persist')):
+            persistence = True
+            notify_frequency = 24 * 60 * 60 # 24 hours
+            if parts[7] in frequency_mapping:
+                notify_frequency = frequency_mapping[parts[7]]
+                
+
 
         if not self.repository.isPricePairValid(fsym, tsym):
             self.api.sendMessage("Invalid symbols {} {}".format(fsym,tsym), chatId)
