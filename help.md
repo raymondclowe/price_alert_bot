@@ -45,10 +45,7 @@ Get the current alerts.
 
 **/clear**  
 Clear current alerts.
-
-**/yesterday**
-Price yesterday for a coin
-
+ 
 **/history**
 Historical price of a coin in the past. Supports days, weeks, months, years.
 
