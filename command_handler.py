@@ -273,8 +273,12 @@ class CommandHandler:
             duration_type = 'days'
             persistence = True
             notify_frequency = 24 * 60 * 60 # 24 hours
-            if len(parts) > 6 and parts[6] in frequency_mapping:
-                notify_frequency = frequency_mapping[parts[6]]
+            if len(parts) > 6:
+                if parts[6] in frequency_mapping:
+                    notify_frequency = frequency_mapping[parts[6]]
+                else:
+                    self.api.sendMessage("Invalid frequency, must be minute, hourly, daily, weekly", chatId)
+                    return
 
         # if there are 6 or 7 parts and the last part starts 'persist' then persistence is true
         persistence = False
@@ -283,6 +287,9 @@ class CommandHandler:
             notify_frequency = 24 * 60 * 60 # 24 hours
             if parts[7] in frequency_mapping:
                 notify_frequency = frequency_mapping[parts[7]]
+            else:
+                self.api.sendMessage("Invalid frequency, must be minute, hourly, daily, weekly", chatId)
+                return
                 
 
 
