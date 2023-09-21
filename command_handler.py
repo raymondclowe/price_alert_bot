@@ -12,7 +12,7 @@ from formating import format_price
 from api.binance_rest import CandleInterval
 
 from utils import get_id
-
+from utils import human_format_seconds
 class CommandHandler:
 
     def __init__(self, api, repository, db, log):
@@ -186,7 +186,7 @@ class CommandHandler:
                 # persistString is either empty or it the word "persistent" followed by the notify_frequency duration
                 persistString = ''
                 if 'persistent' in watch and watch['persistent']:
-                    persistString =f'persistent {watch["notify_frequency"]} seconds'
+                    persistString =f'persistent repeating every {human_format_seconds(watch["notify_frequency"])}'
                 msg += '{} {} {} {} {} {}\n'.format(watch['fsym'], watch['op'], watch['target'], watch['duration'], watch['duration_type'], persistString)
         
                 
@@ -199,20 +199,28 @@ class CommandHandler:
         # /watch btc rise 50% 1 month persistent
         # /watch btc drop 5000 2 days
         # /watch btc drop 5000 from ath
-        # /watch btc drop 5000 from ath persistent
+        # /watch btc drop 5000 from ath persistent {hourly|daily|weekly}
 
-        parts = command.split()
-        if not (len(parts) in [5,6,7]): # if you don't specify period it is days
+        frequency_mapping = {
+            'weekly': 7 * 24 * 60 * 60,
+            'daily': 24 * 60 * 60,
+            'hourly': 60 * 60
+        }
+
+        parts = command.lower.split()
+        if not (len(parts) in [5,6,7,8]): # if you don't specify period it is days
             self.api.sendMessage("Invalid command, see help", chatId)
             return
         
         # if there are 6 or 7 parts and the last part starts 'persist' then persistence is true
         persistence = False
-        if len(parts) in [6, 7] and parts[-1].lower().startswith('persist'):
+        if len(parts) in [6, 7, 8] and (parts[6].lower().startswith('persist')):
             persistence = True
+            notify_frequency = 24 * 60 * 60 # 24 hours
+            if parts[7] in frequency_mapping:
+                notify_frequency = frequency_mapping[parts[7]]
+                
 
-
- 
         fsym = parts[1].upper()
 
         tsym = config.DEFAULT_FIAT
@@ -284,7 +292,7 @@ class CommandHandler:
         watch['persistent'] = persistence
         watch['last_notify'] = 0 # Zero epoch
         # once per 24 hours as default
-        watch['notify_frequency']  = 24 * 60 * 60
+        watch['notify_frequency']  = notify_frequency
 
 
         if 'watches' not in self.db:
