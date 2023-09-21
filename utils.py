@@ -7,39 +7,33 @@ def get_id(chatID, obj):
   id = hashlib.md5((str(chatID) + str(obj)).encode('utf-8')).hexdigest()
   return id
 
-import math
 
-SECONDS_IN_MINUTE = 60  
-SECONDS_IN_HOUR = 60 * SECONDS_IN_MINUTE
-SECONDS_IN_DAY = 24 * SECONDS_IN_HOUR
-SECONDS_IN_WEEK = 7 * SECONDS_IN_DAY
-SECONDS_IN_MONTH = 30 * SECONDS_IN_DAY
+def human_format_seconds(seconds):
+    units = [(30 * 24 * 60 * 60, "month"), (7 * 24 * 60 * 60, "week"), (24 * 60 * 60, "day"), (60 * 60, "hour"), (60, "minute"), (1, "second")]
 
-ROUNDING_THRESHOLD = 0.1
+    result = ""
+    for divider, unit in units:
+        quantity = seconds // divider
+        seconds %= divider
 
-units = [
-    ("seconds", SECONDS_IN_MINUTE),
-    ("minutes", SECONDS_IN_HOUR), 
-    ("hours", SECONDS_IN_DAY),
-    ("days", SECONDS_IN_WEEK),
-    ("weeks", SECONDS_IN_MONTH)
-]
+        # Check if the remainder is within 10% of the current unit
+        if seconds >= 0.9 * divider:
+            quantity += 1
+            seconds = 0
 
-def format_duration(seconds):
-    for name, length in units:
-        unit = seconds // length
-        remainder = seconds % length
-        
-        if unit < 1:
+        # Check if the quantity is half of the current unit
+        if quantity == 0.5:
+            result += f"half a {unit} "
             continue
-            
-        if remainder > length * ROUNDING_THRESHOLD:
-            unit += 1
-            
-        if remainder > length / 2:
-            return "{:.1f} and a half {}".format(unit, name)
-            
-        if unit < 2:
-            return "about {:.1f} {}".format(unit, name)
 
-    return "{} seconds".format(seconds)
+        # Check if the quantity is about half of the current unit
+        if 0.4 <= quantity < 0.6:
+            result += f"about half a {unit} "
+            continue
+
+        # Add to the result string
+        if quantity > 0:
+            result += f"{'about ' if 0.9 <= quantity < 1 else ''}{int(quantity)} {unit if quantity == 1 else unit + 's'} "
+
+    return result.strip()
+
