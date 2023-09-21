@@ -165,8 +165,9 @@ class TgBotService(object):
                         if not persistent:
                             self.log.debug("removing completed rise watch")
                             del self.db['watches'][i]
-                        # set the most recent notify key as now epoch as int
-                        self.db['watches'][i]['last_notify'] = int(datetime.now().timestamp()) * 1000                        
+                        else:
+                            # set the most recent notify key as now epoch as int
+                            self.db['watches'][i]['last_notify'] = int(datetime.now().timestamp()) * 1000                        
 
                     else:
                         i += 1
