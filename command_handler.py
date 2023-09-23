@@ -275,15 +275,21 @@ class CommandHandler:
 
         # if there are 6 or 7 parts and the last part starts 'persist' then persistence is true
         persistence = False
-        if len(parts) in [7, 8] and (parts[6].lower().startswith('persist')):
-            persistence = True
-            notify_frequency = 24 * 60 * 60 # 24 hours
-            if len(parts) in [8]:
-                if parts[7] in frequency_mapping:
-                    notify_frequency = frequency_mapping[parts[7]]
-                else:
-                    self.api.sendMessage("Invalid frequency, must be minute, hourly, daily, weekly", chatId)
-                    return
+        if len(parts) in [7, 8]:
+            if (parts[6].lower().startswith('persist')):
+                persistence = True
+                notify_frequency = 24 * 60 * 60 # 24 hours
+                if len(parts) in [8]:
+                    if parts[7] in frequency_mapping:
+                        notify_frequency = frequency_mapping[parts[7]]
+                    else:
+                        self.api.sendMessage("Invalid frequency, must be minute, hourly, daily, weekly", chatId)
+                        return
+            else:
+                self.api.sendMessage("Badly formed command, are you trying to watch persistently? Try `/watch btc stable 5% 1 week persist daily` to be informed daily if btc has been stable for a week within a 5% +/- range ", chatId)
+                return
+
+        
                 
 
 
