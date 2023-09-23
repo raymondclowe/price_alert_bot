@@ -208,7 +208,7 @@ class TgBotService(object):
                         break
 
                 if stable:                    
-                    self.api.sendMessage(f"Stable watch: {watch['fsym']} is within +/- {watch['target']} range for {durationindays} days ", watch['chatId'])
+                    self.api.sendMessage(f"Stable watch: {watch['fsym']} at {todaysprice} is within +/- {watch['target']} range for {durationindays} days ", watch['chatId'])
                     if not persistent:
                         self.log.debug("removing completed Stable watch")
                         del self.db['watches'][i]
@@ -282,34 +282,31 @@ class TgBotService(object):
         self.last_update = self.db['last_update'] if 'last_update' in self.db else 0
         # main loop
         loop = True
+        sequence_id = 0
         while loop:
-
+            sequence_id += 1
             time.sleep(1)
-
-            # current time as seconds ignoring dates and milliseconds            
-            current_seconds = int(datetime.now().timestamp())
-
-
             try:                
                 updates = self.api.getUpdates(self.last_update)   
  
                 if updates is None:
                     self.log.error('get update request failed')
                 else:
-                    self.processUpdates(updates)
-                    # if we have just done an update then we should process alerts and watches
-                    self.processAlerts
-                    self.processWatches
+                    if len(updates) > 0:
+                        self.processUpdates(updates)
+                        # if we have just done an update then we should process alerts and watches
+                        self.processAlerts
+                        self.processWatches
 
                 # processing Alerts is quite cheap, do it every 3 seconds, if the current_seconds mod 2 = 0 then
-                if current_seconds % 3 == 0:
+                if sequence_id % 3 == 0:
                     try:
                         self.processAlerts()
                     except:
                         self.log.exception("exception at processing alerts")
 
                 # processing watches is quite expensive, do it every 29 seconds, if the current_seconds mod 10 = 0
-                if current_seconds % 29 == 0:
+                if sequence_id % 29 == 0:
                     try:
                         self.processWatches()
                     except:
