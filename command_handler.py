@@ -14,6 +14,7 @@ from api.binance_rest import CandleInterval
 from utils import get_id
 from utils import human_format_seconds
 from utils import is_valid_number_or_percentage
+
 class CommandHandler:
 
     def __init__(self, api, repository, db, log):
@@ -195,6 +196,7 @@ class CommandHandler:
 
     def watch(self, chatId, command):
         # command structured
+
         # ( 0     1   2    3   4  5     6             7 )
         # /watch btc drop 50% 14 days            (6 parts)
         # /watch btc rise 50% 1 month            (6 parts)
@@ -212,6 +214,7 @@ class CommandHandler:
         # /watch btc stable 1% 1 week persistent weekly monday           (9 parts)
         # /watch btc stable 1% 1 week persistent daily 10:00           (9 parts)
 
+
         frequency_mapping = {
             'weekly': 7 * 24 * 60 * 60,
             'daily': 24 * 60 * 60,
@@ -221,6 +224,7 @@ class CommandHandler:
 
         parts = command.lower().split()
         if not (len(parts) in [6,7,8]): # if you don't specify period it is days
+
             self.api.sendMessage("Invalid command, see help", chatId)
             return
         
@@ -273,6 +277,7 @@ class CommandHandler:
         else:
             duration_type = 'days'
 
+
         # if there are 6 or 7 parts and the last part starts 'persist' then persistence is true
         persistence = False
         if len(parts) in [7, 8]:
@@ -289,8 +294,6 @@ class CommandHandler:
                 self.api.sendMessage("Badly formed command, are you trying to watch persistently? Try `/watch btc stable 5% 1 week persist daily` to be informed daily if btc has been stable for a week within a 5% +/- range ", chatId)
                 return
 
-        
-                
 
 
         if not self.repository.isPricePairValid(fsym, tsym):
@@ -308,17 +311,21 @@ class CommandHandler:
         watch['duration_type'] = duration_type
         watch['from_ath'] = from_ath
         watch['persistent'] = persistence
+
         watch['notify_frequency']  = notify_frequency
         watch['last_notify'] = 0 # Zero epoch
+
 
 
         if 'watches' not in self.db:
             self.db['watches'] = []
 
+
         self.db['watches'].append( watch) 
         # self.api.sendMessage("Watch added", chatId)
 
         resp = 'Watching {} {} {} {} {} {} {}'.format(fsym, op, parts[3], parts[4], parts[5], parts[6], parts[7])
+
         self.api.sendMessage(resp, chatId)
         return
 

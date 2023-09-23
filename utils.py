@@ -7,6 +7,7 @@ def get_id(chatID, obj):
   id = hashlib.md5((str(chatID) + str(obj)).encode('utf-8')).hexdigest()
   return id
 
+
 def is_valid_number_or_percentage(value):
     try:
         # Attempt to convert the value to a float
@@ -23,7 +24,7 @@ def is_valid_number_or_percentage(value):
                 return False
         else:
             return False
-        
+
 def human_format_seconds(seconds):
     units = [(30 * 24 * 60 * 60, "month"), (7 * 24 * 60 * 60, "week"), (24 * 60 * 60, "day"), (60 * 60, "hour"), (60, "minute"), (1, "second")]
 
