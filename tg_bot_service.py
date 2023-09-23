@@ -176,6 +176,14 @@ class TgBotService(object):
                         i += 1
             elif watch['op'] == 'stable':
                 # logic for stable is:
+                
+                # if it is persistent then check the last notify because if that fails then there is no point in calculating the stabilit
+                if persistent:
+                    if datetime.now() - last_notify < timedelta(seconds=notify_frequency):
+                        self.log.debug("persistent watch, not notifying")
+                        i += 1
+                        continue
+
                 # get current price
                 todaysprice = self.repository.get_day_price(watch['fsym'], watch['tsym'], datetime.now())
 
