@@ -172,11 +172,16 @@ class CommandHandler:
             self.api.sendMessage("No watches", chatId)
             return
 
-        for watch in self.db['watches']:
-            if watch['chatId'] == chatId:
-                self.db['watches'].remove(watch)
-
-        self.api.sendMessage("Done.", chatId)
+        # Create a new list without watches for this chatId
+        # This avoids modifying the list while iterating over it
+        original_count = len(self.db['watches'])
+        self.db['watches'] = [watch for watch in self.db['watches'] if watch['chatId'] != chatId]
+        removed_count = original_count - len(self.db['watches'])
+        
+        if removed_count > 0:
+            self.api.sendMessage(f"Removed {removed_count} watch(es).", chatId)
+        else:
+            self.api.sendMessage("No watches found for your chat.", chatId)
 
     def showwatches(self, chatId, command):
         if 'watches' not in self.db or len(self.db['watches']) == 0:
