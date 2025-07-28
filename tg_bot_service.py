@@ -267,31 +267,159 @@ class TgBotService(object):
         else:
             self.log.debug('writing data to a new file')
 
-            # Write data to the new temporary file
-            with open(new_filename, 'wb') as fp:
-                pickle.dump(self.db, fp)
-            
-            # Perform file operations after confirming the data is saved to the new file
-            if os.path.isfile(new_filename):
-                self.log.debug('renaming files and creating backup')
+            # Validate database structure before writing
+            if not self._validate_db_structure(self.db):
+                self.log.error('Database structure validation failed, skipping persistence')
+                return
+
+            try:
+                # Write data to the new temporary file
+                with open(new_filename, 'wb') as fp:
+                    pickle.dump(self.db, fp)
                 
-                # Remove old backup file if it exists
+                # Verify the written data by reading it back
+                with open(new_filename, 'rb') as fp:
+                    test_db = pickle.load(fp)
+                    
+                if not self._validate_db_structure(test_db):
+                    self.log.error('Written database failed validation, aborting persistence')
+                    if os.path.isfile(new_filename):
+                        os.remove(new_filename)
+                    return
+                    
+                # Check if written data matches what we intended to write
+                if repr(test_db) != repr(self.db):
+                    self.log.error('Written database does not match in-memory database, aborting persistence')
+                    if os.path.isfile(new_filename):
+                        os.remove(new_filename)
+                    return
+                
+                self.log.debug('temporary file written and verified successfully')
+                
+            except Exception as e:
+                self.log.error(f'Failed to write temporary database file: {e}')
+                if os.path.isfile(new_filename):
+                    os.remove(new_filename)
+                return
+            
+            # Perform atomic file operations after confirming the data is saved to the new file
+            if os.path.isfile(new_filename):
+                self.log.debug('performing atomic file operations')
+                
+                # Create backup generations (keep last 3 backups)
                 backup_filename = config.DB_FILENAME + ".backup"
-                if os.path.isfile(backup_filename):
-                    os.remove(backup_filename)
+                backup2_filename = config.DB_FILENAME + ".backup.2"
+                backup3_filename = config.DB_FILENAME + ".backup.3"
                 
                 try:
-                    # Rename the current file to a backup file
-                    os.rename(config.DB_FILENAME, backup_filename)
+                    # Rotate backups: backup.2 -> backup.3, backup -> backup.2
+                    if os.path.isfile(backup2_filename):
+                        if os.path.isfile(backup3_filename):
+                            os.remove(backup3_filename)
+                        os.rename(backup2_filename, backup3_filename)
                     
-                    # Rename the new temporary file to the current file
+                    if os.path.isfile(backup_filename):
+                        os.rename(backup_filename, backup2_filename)
+                    
+                    # Create new backup from current file
+                    if os.path.isfile(config.DB_FILENAME):
+                        os.rename(config.DB_FILENAME, backup_filename)
+                    
+                    # Make the new file current
                     os.rename(new_filename, config.DB_FILENAME)
                     
-                    self.log.debug('file persistence completed')
+                    # Update MD5 hash after successful write
+                    self.dbmd5 = hashlib.md5(repr(self.db).encode('utf-8')).hexdigest()
+                    
+                    self.log.debug('file persistence completed successfully')
+                    
                 except Exception as e:
-                    self.log.error('error occurred during file operations: {}'.format(str(e)))
+                    self.log.error(f'Error occurred during atomic file operations: {e}')
+                    
+                    # Try to recover if possible
+                    if os.path.isfile(backup_filename) and not os.path.isfile(config.DB_FILENAME):
+                        try:
+                            os.rename(backup_filename, config.DB_FILENAME)
+                            self.log.info('Recovered main database file from backup')
+                        except Exception as recovery_error:
+                            self.log.error(f'Failed to recover database: {recovery_error}')
+                    
+                    # Clean up temporary file
+                    if os.path.isfile(new_filename):
+                        os.remove(new_filename)
             else:
-                self.log.debug('data not saved to the new file')
+                self.log.error('temporary file not found after write operation')
+
+    def _validate_db_structure(self, db):
+        """Validate that the database has the expected structure"""
+        try:
+            if not isinstance(db, dict):
+                if hasattr(self, 'log'):
+                    self.log.error('Database must be a dictionary')
+                return False
+                
+            # Check alerts structure if present
+            if 'alerts' in db:
+                alerts = db['alerts']
+                if not isinstance(alerts, dict):
+                    if hasattr(self, 'log'):
+                        self.log.error('alerts must be a dictionary')
+                    return False
+                    
+                for chat_id, chat_alerts in alerts.items():
+                    if not isinstance(chat_id, (int, str)):
+                        if hasattr(self, 'log'):
+                            self.log.error(f'Invalid chat_id type: {type(chat_id)}')
+                        return False
+                    if not isinstance(chat_alerts, dict):
+                        if hasattr(self, 'log'):
+                            self.log.error('chat alerts must be a dictionary')
+                        return False
+                        
+                    for fsym, fsym_alerts in chat_alerts.items():
+                        if not isinstance(fsym, str):
+                            if hasattr(self, 'log'):
+                                self.log.error(f'Invalid fsym type: {type(fsym)}')
+                            return False
+                        if not isinstance(fsym_alerts, dict):
+                            if hasattr(self, 'log'):
+                                self.log.error('fsym alerts must be a dictionary')
+                            return False
+            
+            # Check watches structure if present
+            if 'watches' in db:
+                watches = db['watches']
+                if not isinstance(watches, list):
+                    if hasattr(self, 'log'):
+                        self.log.error('watches must be a list')
+                    return False
+                    
+                for i, watch in enumerate(watches):
+                    if not isinstance(watch, dict):
+                        if hasattr(self, 'log'):
+                            self.log.error(f'watch {i} must be a dictionary')
+                        return False
+                        
+                    required_fields = ['chatId', 'fsym', 'tsym', 'op', 'target']
+                    for field in required_fields:
+                        if field not in watch:
+                            if hasattr(self, 'log'):
+                                self.log.error(f'watch {i} missing required field: {field}')
+                            return False
+            
+            # Check last_update if present
+            if 'last_update' in db:
+                if not isinstance(db['last_update'], (int, float)):
+                    if hasattr(self, 'log'):
+                        self.log.error('last_update must be a number')
+                    return False
+            
+            return True
+            
+        except Exception as e:
+            if hasattr(self, 'log'):
+                self.log.error(f'Error validating database structure: {e}')
+            return False
 
     def run(self, debug=True):
             self.log = logger_config.instance
@@ -301,29 +429,97 @@ class TgBotService(object):
                 self.log.setLevel(logger_config.logging.INFO)
 
             cache.log = self.log
-            try:
-                # Check if the current data file exists and is non-zero
-                if os.path.isfile(config.DB_FILENAME) and os.path.getsize(config.DB_FILENAME) > 0:
+            
+            # Initialize database
+            self.db = {}
+            self.dbmd5 = ""
+            
+            # Try to load database with multiple fallback options
+            loaded_successfully = False
+            
+            # Option 1: Load from main database file
+            if not loaded_successfully and os.path.isfile(config.DB_FILENAME) and os.path.getsize(config.DB_FILENAME) > 0:
+                try:
                     with open(config.DB_FILENAME, 'rb') as fp:
-                        self.db = pickle.load(fp)
-                    self.dbmd5 = hashlib.md5(repr(self.db).encode('utf-8')).hexdigest()
-                else:
-                    self.log.debug("Current data file is missing or empty.")
-                    # Check if a backup file exists
-                    backup_filename = config.DB_FILENAME + ".backup"
-                    if os.path.isfile(backup_filename) and os.path.getsize(backup_filename) > 0:
-                        with open(backup_filename, 'rb') as fp:
-                            self.db = pickle.load(fp)
+                        test_db = pickle.load(fp)
+                    
+                    if self._validate_db_structure(test_db):
+                        self.db = test_db
                         self.dbmd5 = hashlib.md5(repr(self.db).encode('utf-8')).hexdigest()
-                        self.log.debug("Loaded data from the backup file.")
+                        self.log.info(f"Loaded database from main file with {len(self.db)} top-level keys")
+                        loaded_successfully = True
                     else:
-                        self.log.debug("Both current and backup files are missing or empty. Creating an empty database.")
-                        self.db = {}
-                        self.dbmd5 = ""
-            except Exception as e:
-                self.log.exception("Error loading data: {}".format(str(e)))
+                        self.log.error("Main database file failed validation")
+                        
+                except Exception as e:
+                    self.log.error(f"Failed to load main database file: {e}")
+            
+            # Option 2: Load from backup file
+            if not loaded_successfully:
+                backup_filename = config.DB_FILENAME + ".backup"
+                if os.path.isfile(backup_filename) and os.path.getsize(backup_filename) > 0:
+                    try:
+                        with open(backup_filename, 'rb') as fp:
+                            test_db = pickle.load(fp)
+                        
+                        if self._validate_db_structure(test_db):
+                            self.db = test_db
+                            self.dbmd5 = hashlib.md5(repr(self.db).encode('utf-8')).hexdigest()
+                            self.log.warning(f"Loaded database from backup file with {len(self.db)} top-level keys")
+                            loaded_successfully = True
+                        else:
+                            self.log.error("Backup database file failed validation")
+                            
+                    except Exception as e:
+                        self.log.error(f"Failed to load backup database file: {e}")
+            
+            # Option 3: Load from backup.2 file
+            if not loaded_successfully:
+                backup2_filename = config.DB_FILENAME + ".backup.2"
+                if os.path.isfile(backup2_filename) and os.path.getsize(backup2_filename) > 0:
+                    try:
+                        with open(backup2_filename, 'rb') as fp:
+                            test_db = pickle.load(fp)
+                        
+                        if self._validate_db_structure(test_db):
+                            self.db = test_db
+                            self.dbmd5 = hashlib.md5(repr(self.db).encode('utf-8')).hexdigest()
+                            self.log.warning(f"Loaded database from backup.2 file with {len(self.db)} top-level keys")
+                            loaded_successfully = True
+                        else:
+                            self.log.error("Backup.2 database file failed validation")
+                            
+                    except Exception as e:
+                        self.log.error(f"Failed to load backup.2 database file: {e}")
+            
+            # Option 4: Load from backup.3 file  
+            if not loaded_successfully:
+                backup3_filename = config.DB_FILENAME + ".backup.3"
+                if os.path.isfile(backup3_filename) and os.path.getsize(backup3_filename) > 0:
+                    try:
+                        with open(backup3_filename, 'rb') as fp:
+                            test_db = pickle.load(fp)
+                        
+                        if self._validate_db_structure(test_db):
+                            self.db = test_db
+                            self.dbmd5 = hashlib.md5(repr(self.db).encode('utf-8')).hexdigest()
+                            self.log.warning(f"Loaded database from backup.3 file with {len(self.db)} top-level keys")
+                            loaded_successfully = True
+                        else:
+                            self.log.error("Backup.3 database file failed validation")
+                            
+                    except Exception as e:
+                        self.log.error(f"Failed to load backup.3 database file: {e}")
+            
+            # Final fallback: Create empty database
+            if not loaded_successfully:
+                self.log.warning("All database files failed to load or were invalid. Creating empty database.")
                 self.db = {}
                 self.dbmd5 = ""
+                
+                # Save the current state immediately to prevent future issues
+                if loaded_successfully:
+                    self.persist_db()
 
             self.api = TgApi(self.log)
             self.repository = MarketRepository(self.log)
@@ -346,8 +542,8 @@ class TgBotService(object):
                         if len(updates) > 0:
                             self.processUpdates(updates)
                             # if we have just done an update then we should process alerts and watches
-                            self.processAlerts
-                            self.processWatches
+                            self.processAlerts()
+                            self.processWatches()
 
                     # processing Alerts is quite cheap, do it every 3 seconds, if the current_seconds mod 2 = 0 then
                     if sequence_id % 3 == 0:
