@@ -516,10 +516,10 @@ class TgBotService(object):
                 self.log.warning("All database files failed to load or were invalid. Creating empty database.")
                 self.db = {}
                 self.dbmd5 = ""
-                
-                # Save the current state immediately to prevent future issues
-                if loaded_successfully:
-                    self.persist_db()
+
+            # Save the current state immediately to prevent future issues
+            if loaded_successfully:
+                self.persist_db()
 
             self.api = TgApi(self.log)
             self.repository = MarketRepository(self.log)
