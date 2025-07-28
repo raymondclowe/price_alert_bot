@@ -1,3 +1,5 @@
+#!/bin/bash
+cd /home/rcl/price_alert_bot
 source venv/bin/activate
 logfile="price.log"
 if [ -f "$logfile" ] 
