@@ -1,6 +1,7 @@
 # utils.py - Utility functions
 
 import hashlib
+import re
 
 def get_id(chatID, obj):
   # id = hashlib.md5(str(chatID)+str(obj).encode('utf-8')).hexdigest()
@@ -63,12 +64,18 @@ def parse_name_from_command(command_text):
         '/higher btc 86993.1 called "breakout target"' -> 
         ('/higher btc 86993.1', 'breakout target')
     """
-    import re
+    # Try to match double quotes first
+    pattern_double = r'\s+called\s+"([^"]+)"\s*$'
+    match = re.search(pattern_double, command_text, re.IGNORECASE)
     
-    # Match 'called "..."' at the end of the command
-    # This pattern allows for both single and double quotes
-    pattern = r'\s+called\s+["\']([^"\']+)["\']\s*$'
-    match = re.search(pattern, command_text, re.IGNORECASE)
+    if match:
+        name = match.group(1)
+        command_without_name = command_text[:match.start()]
+        return (command_without_name, name)
+    
+    # Try single quotes
+    pattern_single = r"\s+called\s+'([^']+)'\s*$"
+    match = re.search(pattern_single, command_text, re.IGNORECASE)
     
     if match:
         name = match.group(1)

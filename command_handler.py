@@ -82,11 +82,11 @@ class CommandHandler:
                     for op in alerts[fsym]:
                         for tsym in alerts[fsym][op]:
                             for target in alerts[fsym][op][tsym]:
-                                hashOfAlert = get_id(chatId, target)[:4]
+                                alert_id = get_id(chatId, f"{fsym}_{op}_{target}_{tsym}")
+                                hashOfAlert = alert_id[:4]
                                 alertString = f'{fsym} {op} {target} {tsym}'
                                 # Check if there's a name for this alert
                                 if 'alert_names' in self.db:
-                                    alert_id = get_id(chatId, f"{fsym}_{op}_{target}_{tsym}")
                                     if alert_id in self.db['alert_names']:
                                         alertString += f' (called "{self.db["alert_names"][alert_id]}")'
                                 alertString += '\n'
@@ -142,10 +142,14 @@ class CommandHandler:
                     for op in alerts[fsym]:
                         for tsym in alerts[fsym][op]:
                             for target in alerts[fsym][op][tsym]:
-                                alertString = f'{fsym} {op} {target} {tsym}\n' 
-                                hashOfAlert = get_id(chatId, target)[:4]
+                                alert_id = get_id(chatId, f"{fsym}_{op}_{target}_{tsym}")
+                                hashOfAlert = alert_id[:4]
                                 if deleteID == hashOfAlert:
                                     self.db['alerts'][chatId][fsym][op][tsym].remove(target)
+                                    # Remove the alert name if it exists
+                                    if 'alert_names' in self.db and alert_id in self.db['alert_names']:
+                                        del self.db['alert_names'][alert_id]
+                                    alertString = f'{fsym} {op} {target} {tsym}\n'
                                     self.api.sendMessage(f'Alert deleted {alertString}', chatId)
                                     self.log.info(f'Alert deleted {alertString}')
                                     return

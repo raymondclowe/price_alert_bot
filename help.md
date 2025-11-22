@@ -39,7 +39,7 @@ Get notified when price of desired symbol goes HIGHER than specified number.
 
 You can optionally give your alert a custom name using the `called "name"` syntax.
 
-Example:s
+Example:
 `/higher ETH 25` (notify me when ETH price goes higher than 25 USD)  
 `/higher BTC 1300 USD`  
 `/higher XMR 0.01 BTC` (notify me when XMR price goes higher than 0.01 BTC)  
