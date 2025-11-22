@@ -54,3 +54,26 @@ def human_format_seconds(seconds):
 
     return result.strip()
 
+def parse_name_from_command(command_text):
+    """
+    Parse name from command text using 'called "name"' syntax.
+    Returns tuple: (command_without_name, name or None)
+    
+    Example:
+        '/higher btc 86993.1 called "breakout target"' -> 
+        ('/higher btc 86993.1', 'breakout target')
+    """
+    import re
+    
+    # Match 'called "..."' at the end of the command
+    # This pattern allows for both single and double quotes
+    pattern = r'\s+called\s+["\']([^"\']+)["\']\s*$'
+    match = re.search(pattern, command_text, re.IGNORECASE)
+    
+    if match:
+        name = match.group(1)
+        command_without_name = command_text[:match.start()]
+        return (command_without_name, name)
+    
+    return (command_text, None)
+

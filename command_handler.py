@@ -14,6 +14,7 @@ from api.binance_rest import CandleInterval
 from utils import get_id
 from utils import human_format_seconds
 from utils import is_valid_number_or_percentage
+from utils import parse_name_from_command
 
 class CommandHandler:
 
@@ -82,7 +83,13 @@ class CommandHandler:
                         for tsym in alerts[fsym][op]:
                             for target in alerts[fsym][op][tsym]:
                                 hashOfAlert = get_id(chatId, target)[:4]
-                                alertString = f'{fsym} {op} {target} {tsym}\n' 
+                                alertString = f'{fsym} {op} {target} {tsym}'
+                                # Check if there's a name for this alert
+                                if 'alert_names' in self.db:
+                                    alert_id = get_id(chatId, f"{fsym}_{op}_{target}_{tsym}")
+                                    if alert_id in self.db['alert_names']:
+                                        alertString += f' (called "{self.db["alert_names"][alert_id]}")'
+                                alertString += '\n'
                                 deleteList += f'ID={hashOfAlert} : {alertString} \n'
             else:
                 deleteList += 'No alert is set \n\n'
@@ -99,6 +106,9 @@ class CommandHandler:
                             persistString = ''
                         
                         watchString = f'{watch["fsym"]} {watch["op"]} {watch["target"]} {watch["duration"]} {watch["duration_type"]} {persistString}'
+                        # Add name if present
+                        if 'name' in watch and watch['name']:
+                            watchString += f' (called "{watch["name"]}")'
                         deleteList += f'ID={hashOfWatch} : {watchString} \n'
                         
             else:
@@ -195,12 +205,19 @@ class CommandHandler:
                 persistString = ''
                 if 'persistent' in watch and watch['persistent']:
                     persistString =f'persistent repeating every {human_format_seconds(watch["notify_frequency"])}'
-                msg += '{} {} {} {} {} {}\n'.format(watch['fsym'], watch['op'], watch['target'], watch['duration'], watch['duration_type'], persistString)
+                watch_line = '{} {} {} {} {} {}'.format(watch['fsym'], watch['op'], watch['target'], watch['duration'], watch['duration_type'], persistString)
+                # Add name if present
+                if 'name' in watch and watch['name']:
+                    watch_line += f' (called "{watch["name"]}")'
+                msg += watch_line + '\n'
         
                 
         self.api.sendMessage(msg, chatId)
 
     def watch(self, chatId, command):
+        # Parse name from command if present
+        command, name = parse_name_from_command(command)
+        
         # command structured
 
         # ( 0     1   2    3   4  5     6             7 )
@@ -320,6 +337,10 @@ class CommandHandler:
 
         watch['notify_frequency']  = notify_frequency
         watch['last_notify'] = 0 # Zero epoch
+        
+        # Add name if provided
+        if name:
+            watch['name'] = name
 
 
 
@@ -335,6 +356,10 @@ class CommandHandler:
 
         for part in parts[3:]:
             resp += ' {}'.format(part)  # Concatenate each part to the resp string
+        
+        # Add name to response if provided
+        if name:
+            resp += f' (called "{name}")'
 
 
 
@@ -611,6 +636,9 @@ class CommandHandler:
             self.api.sendMessage(f"no chart for {fsym} {tsym} {tf}", chatId)
 
     def higher_lower(self, chatId, command):
+        # Parse name from command if present
+        command, name = parse_name_from_command(command)
+        
         parts = command.upper().split()
         if len(parts) < 3 or len(parts) > 4:
             self.api.sendMessage("Invalid command", chatId)
@@ -650,7 +678,17 @@ class CommandHandler:
         else:
             alerts[fsym] = {op: {tsym: set([target])}}
         self.db['alerts'][chatId] = alerts
+        
+        # Store the name if provided
+        if name:
+            if 'alert_names' not in self.db:
+                self.db['alert_names'] = {}
+            alert_id = get_id(chatId, f"{fsym}_{op}_{target}_{tsym}")
+            self.db['alert_names'][alert_id] = name
+            
         msg = f'Notification set for {fsym} {"below" if op == "LOWER" else "above"} {format_price(target)} {tsym}.'
+        if name:
+            msg += f' (called "{name}")'
         self.api.sendMessage(msg, chatId)
 
     @cache("cmd.Help", 10)
@@ -673,7 +711,13 @@ class CommandHandler:
                 for op in alerts[fsym]:
                     for tsym in alerts[fsym][op]:
                         for target in alerts[fsym][op][tsym]:
-                            msg=f'{msg}{fsym} {op} {target} {tsym}\n'
+                            alert_str = f'{fsym} {op} {target} {tsym}'
+                            # Check if there's a name for this alert
+                            if 'alert_names' in self.db:
+                                alert_id = get_id(chatId, f"{fsym}_{op}_{target}_{tsym}")
+                                if alert_id in self.db['alert_names']:
+                                    alert_str += f' (called "{self.db["alert_names"][alert_id]}")'
+                            msg=f'{msg}{alert_str}\n'
             self.api.sendMessage(msg, chatId)
         else:
             self.api.sendMessage('No alert is set',chatId)
