@@ -25,20 +25,26 @@ See the current prices of the top coins and market cap.
 **/lower**  
 Get notified when price of desired symbol goes LOWER than specified number. The base currency defaults to USD if not provided.  
 
+You can optionally give your alert a custom name using the `called "name"` syntax.
+
 Example:  
 `/lower ETH 25` (notify me when ETH price goes lower than 25 USD)  
 `/lower BTC 1300 USD`  
 `/lower XMR 0.01 BTC` (notify me when XMR price goes lower than 0.01 BTC)  
 `/lower Nano 100 SAT` (notify me when Nano price goes lower than 100 Sats)  
+`/lower BTC 80000 called "support level"` (named alert)
 
 **/higher**  
 Get notified when price of desired symbol goes HIGHER than specified number.
+
+You can optionally give your alert a custom name using the `called "name"` syntax.
 
 Example:  
 `/higher ETH 25` (notify me when ETH price goes higher than 25 USD)  
 `/higher BTC 1300 USD`  
 `/higher XMR 0.01 BTC` (notify me when XMR price goes higher than 0.01 BTC)  
 `/higher Nano 100 SAT` (notify me when Nano price goes higher than 100 Sats)  
+`/higher BTC 86993.1 called "breakout target"` (named alert)
 
 **/alerts**  
 Get the current alerts.
@@ -73,12 +79,15 @@ Check if a coin has dropped by a percentage
 **/watch**
 Command structured for checking if the price has risen, dropped or is stable
 
+You can optionally give your watch a custom name using the `called "name"` syntax.
+
 Example:  
 `/watch btc drop 50% 14 days` (Percentage drop)  
 `/watch btc rise 50% 1 month`  
 `/watch btc drop 5000 2 days` (absolute value drop)  
 `/watch btc drop 5000 from ath`  
 `/watch btc drop 75% from ath`  
+`/watch eth 2000 called "retest level"` (named watch)
 
 Optionally watch commands have have a `persist` keywords so they don't get deleted when they fire
 but will repeat. Minimum frequency is default 1 day but can be set to hourly, weekly or by the minute. Such watches have to be manually deleted using the `/delete` command when you don't want them any more.
@@ -86,6 +95,7 @@ but will repeat. Minimum frequency is default 1 day but can be set to hourly, we
 Example:  
 `/watch btc drop 50% 14 days persist`  
 `/watch btc drop 5000 from ath persistent daily`
+`/watch btc drop 5000 from ath persistent daily called "big drop alert"` (named persistent watch)
   
 Comparisons are vs current price unless "from ath" is set   
 

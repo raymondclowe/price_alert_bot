@@ -1,6 +1,7 @@
 # utils.py - Utility functions
 
 import hashlib
+import re
 
 def get_id(chatID, obj):
   # id = hashlib.md5(str(chatID)+str(obj).encode('utf-8')).hexdigest()
@@ -53,4 +54,33 @@ def human_format_seconds(seconds):
             result += f"{'about ' if 0.9 <= quantity < 1 else ''}{int(quantity)} {unit if quantity == 1 else unit + 's'} "
 
     return result.strip()
+
+def parse_name_from_command(command_text):
+    """
+    Parse name from command text using 'called "name"' syntax.
+    Returns tuple: (command_without_name, name or None)
+    
+    Example:
+        '/higher btc 86993.1 called "breakout target"' -> 
+        ('/higher btc 86993.1', 'breakout target')
+    """
+    # Try to match double quotes first
+    pattern_double = r'\s+called\s+"([^"]+)"\s*$'
+    match = re.search(pattern_double, command_text, re.IGNORECASE)
+    
+    if match:
+        name = match.group(1)
+        command_without_name = command_text[:match.start()]
+        return (command_without_name, name)
+    
+    # Try single quotes
+    pattern_single = r"\s+called\s+'([^']+)'\s*$"
+    match = re.search(pattern_single, command_text, re.IGNORECASE)
+    
+    if match:
+        name = match.group(1)
+        command_without_name = command_text[:match.start()]
+        return (command_without_name, name)
+    
+    return (command_text, None)
 

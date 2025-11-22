@@ -1,3 +1,4 @@
+from utils import get_id
 import hashlib
 import traceback
 import math, time, requests, pickle, traceback, sys, os
@@ -27,6 +28,13 @@ class TgBotService(object):
     def removeAlert(self, fsym, tsym, target, chatId, op):
         alerts = self.db['alerts']
         alerts[chatId][fsym][op][tsym].remove(target)
+        
+        # Remove the alert name if it exists
+        if 'alert_names' in self.db:
+            alert_id = get_id(chatId, f"{fsym}_{op}_{target}_{tsym}")
+            if alert_id in self.db['alert_names']:
+                del self.db['alert_names'][alert_id]
+        
         if len(alerts[chatId][fsym][op][tsym]) == 0:
             alerts[chatId][fsym][op].pop(tsym)
             if len(alerts[chatId][fsym][op]) == 0:
@@ -56,7 +64,13 @@ class TgBotService(object):
                         price = self.repository.get_price_if_valid(fsym, tsym)
                         for target in targets:
                             if op == lower and price < target or op == higher and price > target:
-                                self.api.sendMessage(f"{fsym} is {'below' if op == lower else 'above'} {format_price(target)} at {format_price(price)} {tsym}", chatId)
+                                msg = f"{fsym} is {'below' if op == lower else 'above'} {format_price(target)} at {format_price(price)} {tsym}"
+                                # Add name if it exists
+                                if 'alert_names' in self.db:
+                                    alert_id = get_id(chatId, f"{fsym}_{op}_{target}_{tsym}")
+                                    if alert_id in self.db['alert_names']:
+                                        msg += f' (called "{self.db["alert_names"][alert_id]}")'
+                                self.api.sendMessage(msg, chatId)
                                 toRemove.append((fsym, tsym, target, chatId, op))
 
         for tr in toRemove:
@@ -147,7 +161,10 @@ class TgBotService(object):
                             i += 1
                             continue
                                         
-                    self.api.sendMessage(f"Drop watch: {watch['fsym']} is {currentprice} {watch['tsym']} which is at least {watch['target']} lower than it was at {comparitordate_str} when it was {format_price(comparitorprice)} ", watch['chatId'])
+                    msg = f"Drop watch: {watch['fsym']} is {currentprice} {watch['tsym']} which is at least {watch['target']} lower than it was at {comparitordate_str} when it was {format_price(comparitorprice)} "
+                    if 'name' in watch and watch['name']:
+                        msg += f'(called "{watch["name"]}")'
+                    self.api.sendMessage(msg, watch['chatId'])
                     if not persistent:
                         self.log.debug("removing completed drop watch")
                         del self.db['watches'][i]
@@ -164,7 +181,10 @@ class TgBotService(object):
                                 i += 1
                                 continue
 
-                        self.api.sendMessage(f"Rise watch: {watch['fsym']} is {currentprice} {watch['tsym']} which is at least {watch['target']} higher than it was at {comparitordate_str} when it was {format_price(comparitorprice)} ", watch['chatId'])
+                        msg = f"Rise watch: {watch['fsym']} is {currentprice} {watch['tsym']} which is at least {watch['target']} higher than it was at {comparitordate_str} when it was {format_price(comparitorprice)} "
+                        if 'name' in watch and watch['name']:
+                            msg += f'(called "{watch["name"]}")'
+                        self.api.sendMessage(msg, watch['chatId'])
                         if not persistent:
                             self.log.debug("removing completed rise watch")
                             del self.db['watches'][i]
@@ -218,7 +238,10 @@ class TgBotService(object):
                         break
 
                 if stable:                    
-                    self.api.sendMessage(f"Stable watch: {watch['fsym']} at {currentprice} is within +/- {watch['target']} range for {durationindays} days ", watch['chatId'])
+                    msg = f"Stable watch: {watch['fsym']} at {currentprice} is within +/- {watch['target']} range for {durationindays} days "
+                    if 'name' in watch and watch['name']:
+                        msg += f'(called "{watch["name"]}")'
+                    self.api.sendMessage(msg, watch['chatId'])
                     if not persistent:
                         self.log.debug("removing completed Stable watch")
                         del self.db['watches'][i]
