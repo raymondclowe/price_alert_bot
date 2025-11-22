@@ -142,9 +142,15 @@ class CommandHandler:
                     for op in alerts[fsym]:
                         for tsym in alerts[fsym][op]:
                             for target in alerts[fsym][op][tsym]:
+                                # New ID format (more specific, includes all alert parameters)
                                 alert_id = get_id(chatId, f"{fsym}_{op}_{target}_{tsym}")
                                 hashOfAlert = alert_id[:4]
-                                if deleteID == hashOfAlert:
+                                
+                                # Also check old ID format for backward compatibility
+                                old_alert_id = get_id(chatId, target)
+                                old_hashOfAlert = old_alert_id[:4]
+                                
+                                if deleteID == hashOfAlert or deleteID == old_hashOfAlert:
                                     self.db['alerts'][chatId][fsym][op][tsym].remove(target)
                                     # Remove the alert name if it exists
                                     if 'alert_names' in self.db and alert_id in self.db['alert_names']:
